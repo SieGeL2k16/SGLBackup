@@ -1,7 +1,27 @@
 SGLBackup history
 ---------------------------------------------------------------------------
 
-V0.55 (29-Mar-2015) - Made password option for MySQL dumps obsolete.
+V0.45 (29-Mar-2015) - Added new prefix "MYSQL56+" to DIR_* configuration.
+                      This new string allows to backup MySQL 5.6 or newer
+                      systems without getting the warning that passwords
+                      passed on command-line are insecure....
+                      You need to first setup local credentials with the
+                      command
+
+                      mysql_config_editor set --login-path=local \
+                       --host=localhost --user=<dbuser> --password
+
+                      Then you pass as DIR_<x> Parameter the following:
+
+                      MYSQL56+:<username>/local|<dbname_or_'*'>
+
+                      SGLBackup will then utilize the --login-path
+                      parameter of MySQL to authenticate itself.
+
+                      See MySQL manual about the --login-path parameter
+                      for details how this all works.
+
+                    - Made password option for MySQL dumps obsolete.
 
 V0.44 (06-Jan-2015) - Excluded both "performance_schema" and
                       "information_schema" when doing mysql exports.

@@ -484,46 +484,86 @@ sub ReadConfig($)
       {
       $PATTERN_ACTIVE = 1;
       $config->{'pattern'}[$i] = 1;       # Mark entry, so that we do not try to backup THIS entry
-      if($config->{'dir'}[$i]=~/^MYSQL\:/)
+      my ($mysqldb,$mysqlhost,$mysqluser,$mysqlpass,$mysqllocal);
+      if($config->{'dir'}[$i]=~/^MYSQL\:/ || $config->{'dir'}[$i]=~/^MYSQL56\+\:/)
         {
-        my ($mysqldb,$mysqlhost,$mysqluser,$mysqlpass);
-        my @dummy = split /\|/,$config->{'dir'}[$i];
-        if(defined($dummy[1]) && $dummy[1] ne '')
+        # Parse old MySQL style with password on commandline
+        if($config->{'dir'}[$i]=~/^MYSQL\:/)
           {
-          $mysqldb = $dummy[1];
-          }
-        $dummy[0]=~s/^MYSQL://;
-        my @dummy2 = split /\@/,$dummy[0];
-        if(defined($dummy2[1]) && $dummy2[1] ne '')
-          {
-          $mysqlhost = $dummy2[1];
+          $mysqllocal = '';
+          my @dummy = split /\|/,$config->{'dir'}[$i];
+          if(defined($dummy[1]) && $dummy[1] ne '')
+            {
+            $mysqldb = $dummy[1];
+            }
+          $dummy[0]=~s/^MYSQL://;
+          my @dummy2 = split /\@/,$dummy[0];
+          if(defined($dummy2[1]) && $dummy2[1] ne '')
+            {
+            $mysqlhost = $dummy2[1];
+            }
+          else
+            {
+            $mysqlhost = "localhost";
+            }
+          @dummy2 = split(/\//, $dummy2[0]);
+          $mysqluser = $dummy2[0];
+          if(!defined($mysqluser) || $mysqluser eq '')
+            {
+            printf(STDERR "ReadConfig() FAILED!!!\n\nCannot determine MySQL User name for backupset %s (Defined was %s) ????\n\n",$i,$config->{'dir'}[$i]);
+            die ("Check configuration of listed backupset - Aborting\n");
+            }
+          $mysqlpass = (defined($dummy2[1]) ? $dummy2[1] : '');
+          # Make pattern useable under perl (simple * is not enough)
+          if($mysqldb eq '*')
+            {
+            $mysqldb = '.*';
+            }
+          else
+            {
+            $mysqldb=~s/\*/\.\*/;
+            }
           }
         else
           {
-          $mysqlhost = "localhost";
+          # New format for MySQL 5.6 or neweR:
+          # MYSQL56+: <username>/<local-path_value>|database
+          my @dummy = split /\|/,$config->{'dir'}[$i];
+          if(defined($dummy[1]) && $dummy[1] ne '')
+            {
+            $mysqldb = $dummy[1];
+            }
+          if($mysqldb eq '*')
+            {
+            $mysqldb = '.*';
+            }
+          else
+            {
+            $mysqldb=~s/\*/\.\*/;
+            }
+          $dummy[0]=~s/^MYSQL56\+://;
+          my @dummy2 = split /\@/,$dummy[0];
+          @dummy2 = split(/\//, $dummy2[0]);
+          $mysqluser = $dummy2[0];
+          if(!defined($mysqluser) || $mysqluser eq '')
+            {
+            printf(STDERR "ReadConfig() FAILED!!!\n\nCannot determine MySQL User name for backupset %s (Defined was %s) ????\n\n",$i,$config->{'dir'}[$i]);
+            die ("Check configuration of listed backupset - Aborting\n");
+            }
+          $mysqllocal = (defined($dummy2[1]) ? $dummy2[1] : '');
           }
-        @dummy2 = split(/\//, $dummy2[0]);
-        $mysqluser = $dummy2[0];
-        if(!defined($mysqluser) || $mysqluser eq '')
-          {
-          printf(STDERR "ReadConfig() FAILED!!!\n\nCannot determine MySQL User name for backupset %s (Defined was %s) ????\n\n",$i,$config->{'dir'}[$i]);
-          die ("Check configuration of listed backupset - Aborting\n");
-          }
-        $mysqlpass = (defined($dummy2[1]) ? $dummy2[1] : '');
-        # Make pattern useable under perl (simple * is not enough)
-        if($mysqldb eq '*')
-          {
-          $mysqldb = '.*';
-          }
-        else
-          {
-          $mysqldb=~s/\*/\.\*/;
-          }
-        my @dbs = ReadMySQLDBList($mysqluser,$mysqlpass,$mysqlhost,$mysqldb,$config->{'mysqldump'},$config->{'tmpdir'});
+        my @dbs = ReadMySQLDBList($mysqluser,$mysqlpass,$mysqlhost,$mysqldb,$config->{'mysqldump'},$config->{'tmpdir'},$mysqllocal);
         # Now add the new found directories as new entries to our config array
         for(my $jobs = 0; $jobs < scalar @dbs; $jobs++)
           {
-          $config->{'dir'}[$newmaxsets]     = sprintf("MYSQL:%s/%s@%s|%s",$mysqluser,$mysqlpass,$mysqlhost,$dbs[$jobs]);
+          if($mysqllocal ne '')
+            {
+            $config->{'dir'}[$newmaxsets]     = sprintf("MYSQL56+:%s/%s|%s",$mysqluser,$mysqllocal,$dbs[$jobs]);
+            }
+          else
+            {
+            $config->{'dir'}[$newmaxsets]     = sprintf("MYSQL:%s/%s@%s|%s",$mysqluser,$mysqlpass,$mysqlhost,$dbs[$jobs]);
+            }
           $config->{'name'}[$newmaxsets]    = $config->{'name'}[$i]."_".$dbs[$jobs];
           $config->{'mode'}[$newmaxsets]    = $config->{'mode'}[$i];
           $config->{'maxgen'}[$newmaxsets]  = $config->{'maxgen'}[$i];
@@ -537,6 +577,11 @@ sub ReadConfig($)
           $config->{'scpopts'}[$newmaxsets] = $config->{'scpopts'}[$i];
           $config->{'sshopts'}[$newmaxsets] = $config->{'sshopts'}[$i];
           $config->{'exclude'}[$newmaxsets] = $config->{'exclude'}[$i];
+          $config->{'muser'}[$newmaxsets]   = $mysqluser;
+          $config->{'mpass'}[$newmaxsets]   = $mysqlpass;
+          $config->{'mhost'}[$newmaxsets]   = $mysqlhost;
+          $config->{'mdb'}[$newmaxsets]     = $mysqldb=$dbs[$jobs];
+          $config->{'mlocal'}[$newmaxsets]  = $mysqllocal;
           $newmaxsets++;
           }
         }
@@ -634,21 +679,25 @@ sub ReadConfig($)
 #    NAME: ReadMySQLDBList()
 # PURPOSE: Reads available databases from given MySQL DB, matches them against the pattern and
 #          returns an array of database names which will be added to our internal config list
-#   INPUT: $muser => Username for MySQL, must have access to the "SHOW DATABASES" command!
-#          $mpass => Password of the given user
-#          $mhost => Hostname to connect
-#          $mdb   => Pattern to use against the list of available databases
-#          $mdump => Full path to mysqldump util from configuration
+#   INPUT: $muser   => Username for MySQL, must have access to the "SHOW DATABASES" command!
+#          $mpass   => Password of the given user
+#          $mhost   => Hostname to connect
+#          $mdb     => Pattern to use against the list of available databases
+#          $mdump   => Full path to mysqldump util from configuration
+#          $tmpdir  => Path to temporary directory
+#          $mlocal  => If given, use this for new connection method (MySQL 5.6+)
 #  RETURN: Array of found databases or undef in case of an error
 #   NOTES: We assume here that the MYSQL tool "mysql" can be found under the same location
 #          as the MySQLDump command. if this is not the case we abort here with an appropiate
 #          error message.
 #          mysql --user=<user> --password=<pass> --host=<host> --vertical --execute="show databases"
+#          New method "MYSQL56+" requires to have the password created by the new MySQL command:
+#          mysql_config_editor set --login-path=local --host=localhost --user=db_user --password
 ####################################################################################################
 
-sub ReadMySQLDBList($$$$$$)
+sub ReadMySQLDBList($$$$$$$)
   {
-  my ($muser,$mpass,$mhost,$mdb,$mdump,$tmpdir) = @_;
+  my ($muser,$mpass,$mhost,$mdb,$mdump,$tmpdir,$mlocal) = @_;
   my $commandline = '';
   my @resultarray;
 
@@ -664,13 +713,21 @@ sub ReadMySQLDBList($$$$$$)
     exit 10;
     }
   my $tmpname = sprintf("%s/dblist_%s.lst",$tmpdir,$$);
-  if($mpass eq '')
+  # 0.45: Check if we are using login-path instead of password
+  if($mlocal ne '')
     {
-    $commandline = sprintf("%s --user=%s --host=%s --vertical --execute=\"show databases\" >%s",$mtool,$muser,$mhost,$tmpname);
+    $commandline = sprintf("%s --login-path=%s --user=%s --vertical --execute=\"show databases\" >%s",$mtool,$mlocal,$muser,$tmpname);
     }
   else
     {
-    $commandline = sprintf("%s --user=%s --password=%s --host=%s --vertical --execute=\"show databases\" >%s",$mtool,$muser,$mpass,$mhost,$tmpname);
+    if($mpass eq '')
+      {
+      $commandline = sprintf("%s --user=%s --host=%s --vertical --execute=\"show databases\" >%s",$mtool,$muser,$mhost,$tmpname);
+      }
+    else
+      {
+      $commandline = sprintf("%s --user=%s --password=%s --host=%s --vertical --execute=\"show databases\" >%s",$mtool,$muser,$mpass,$mhost,$tmpname);
+      }
     }
   if(ExecuteCMD($commandline,"ReadMySQLDBList()->mysql",$mtool))
     {
@@ -798,11 +855,15 @@ Sascha 'SieGeL' Pfalz <webmaster@saschapfalz.de>E<10>
 
 =head1 VERSION
 
-This is sgl_utils.pm V0.14
+This is sgl_utils.pm V0.15
 
 =head1 HISTORY
 
 =over 2
+
+=item <Bv0.15 (29-Mar-2015)>
+
+Added support for new "MYSQL56+" format, which utilize the --login-path Parameter of MySQL 5.6+ instead of using passwords on command-line.
 
 =item <Bv0.14 (23-Feb-2014)>
 

@@ -29,7 +29,7 @@ use sgl_utils qw(:all);             # Load in the global functions
 # Global Variables
 ###################################################################################################
 
-use constant VER => '0.44';         # Version of this script
+use constant VER => '0.45';         # Version of this script
 my %bd;                             # Backup Dirs, stored as DIR_0/NAME_0 pairs
 my $cfgfile = 'config.ini';         # Config filename, can be changed via --config=<> parameter
 my $cfg;                            # Configuration settings stored as hash ref
@@ -558,7 +558,7 @@ sub TarAndZipSet($)
     {
     return(ExportOracle($setnr));
     }
-  elsif($data=~/^MYSQL\:/)
+  elsif($data=~/^MYSQL\:/ || $data=~/^MYSQL56\+\:/)
     {
     return(ExportMySQL($setnr));
     }
@@ -819,38 +819,16 @@ sub ExportMySQL($)
   {
   my ($setnr)   = @_;
   my $st        = getmicrotime;
-  my $mysqluser = "";
-  my $mysqlpass = "";
-  my $mysqldb   = "";
-  my $mysqlhost = "";
+  my $mysqluser = $cfg->{'muser'}[$setnr];
+  my $mysqlpass = $cfg->{'mpass'}[$setnr];
+  my $mysqldb   = $cfg->{'mdb'}[$setnr];
+  my $mysqlhost = $cfg->{'mhost'}[$setnr];
   my $data      = $cfg->{'dir'}[$setnr];
+  my $mysqllocal= $cfg->{'mlocal'}[$setnr];
   my $cmdline;
   my $targetname= "";
   my $pwsection = "";
 
-  my @dummy = split /\|/,$data;
-  if(defined($dummy[1]) && $dummy[1] ne '')
-    {
-    $mysqldb = $dummy[1];
-    }
-  $dummy[0]=~s/^MYSQL://;
-  my @dummy2 = split /\@/,$dummy[0];
-  if(defined($dummy2[1]) && $dummy2[1] ne '')
-    {
-    $mysqlhost = $dummy2[1];
-    }
-  else
-    {
-    $mysqlhost = "localhost";
-    }
-  @dummy2 = split(/\//, $dummy2[0]);
-  $mysqluser = $dummy2[0];
-  if(!defined($mysqluser) || $mysqluser eq '')
-    {
-    AddError("ExportMySQL() FAILED!!!\nCannot determine MySQL User name ????\n\n");
-    return(undef);
-    }
-  $mysqlpass = (defined($dummy2[1]) ? $dummy2[1] : '');
   print(".");
   my @tiarray = localtime (time());
   my $myyear = $tiarray[5];
@@ -862,21 +840,38 @@ sub ExportMySQL($)
 	  {
 	  $myyear+= 2000;
 	  }
-  if($mysqlpass != "")
+  if(defined($mysqlpass) && $mysqlpass ne "")
     {
     $pwsection = sprintf("--password=%s",$mysqlpass);
     }
   $targetname = sprintf("%s/%s_%4d%02d%02d_%02d%02d%02d.sql%s",$cfg->{'tmpdir'},$cfg->{'name'}[$setnr],$myyear,($tiarray[4]+1),$tiarray[3],$tiarray[2],$tiarray[1],$tiarray[0],$cfg->{'ext'});
   if($mysqldb eq '')
     {
-    WriteToLog(sprintf("[%d] Starting MySQL Export of whole database from host %s",$setnr,$mysqlhost));
-    $cmdline = sprintf("%s --user=%s %s --host=%s --all-databases %s | %s >%s",$cfg->{'mysqldump'},$mysqluser,$pwsection,$mysqlhost,$cfg->{'mysqldumpopts'},$cfg->{'gzip'},$targetname);
+    if($mysqllocal ne "")
+      {
+      WriteToLog(sprintf("[%d] Starting MySQL Export of whole database from loginpath %s",$setnr,$mysqllocal));
+      $cmdline = sprintf("%s --login-path=%s --user=%s --all-databases %s | %s >%s",$cfg->{'mysqldump'},$mysqllocal,$mysqluser,$cfg->{'mysqldumpopts'},$cfg->{'gzip'},$targetname);
+      }
+    else
+      {
+      WriteToLog(sprintf("[%d] Starting MySQL Export of whole database from host %s",$setnr,$mysqlhost));
+      $cmdline = sprintf("%s --user=%s %s --host=%s --all-databases %s | %s >%s",$cfg->{'mysqldump'},$mysqluser,$pwsection,$mysqlhost,$cfg->{'mysqldumpopts'},$cfg->{'gzip'},$targetname);
+      }
     }
   else
     {
-    WriteToLog(sprintf("[%d] Starting MySQL Export of database %s from host %s",$setnr,$mysqldb,$mysqlhost));
-    $cmdline = sprintf("%s --user=%s %s --host=%s %s %s | %s >%s",$cfg->{'mysqldump'},$mysqluser,$pwsection,$mysqlhost,$cfg->{'mysqldumpopts'},$mysqldb,$cfg->{'gzip'},$targetname);
+    if($mysqllocal ne "")
+      {
+      WriteToLog(sprintf("[%d] Starting MySQL Export of database %s from loginpath %s",$setnr,$mysqldb,$mysqllocal));
+      $cmdline = sprintf("%s --login-path=%s --user=%s %s %s | %s >%s",$cfg->{'mysqldump'},$mysqllocal,$mysqluser,$cfg->{'mysqldumpopts'},$mysqldb,$cfg->{'gzip'},$targetname);
+      }
+    else
+      {
+      WriteToLog(sprintf("[%d] Starting MySQL Export of database %s from host %s",$setnr,$mysqldb,$mysqlhost));
+      $cmdline = sprintf("%s --user=%s %s --host=%s %s %s | %s >%s",$cfg->{'mysqldump'},$mysqluser,$pwsection,$mysqlhost,$cfg->{'mysqldumpopts'},$mysqldb,$cfg->{'gzip'},$targetname);
+      }
     }
+  #printf("CMD=|%s|\n",$cmdline);
   if(ExecuteCMD($cmdline,sprintf("ExportMySQL(%d)->mysqldump",$setnr),"mysqldump"))
     {
     unlink($targetname);
@@ -1336,7 +1331,7 @@ Released under the GNU public licence.
 
 =head1 VERSION
 
-This is SGLBackup.pl B<V0.44>
+This is SGLBackup.pl B<V0.45>
 
 For changes see file CHANGELOG.
 

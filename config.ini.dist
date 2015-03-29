@@ -169,3 +169,10 @@ MAXGEN_4  = 5
 SCP_4     = siegel@192.168.255.2:/home/siegel/baktest
 SCP_OPTS_4= -q -P9999 -i/home/siegel/.ssh/scp-backup-user.identity
 SSH_OPTS_4= -i/home/siegel/.ssh/scp-backup-user.identity -p9999
+
+DIR_5 = MYSQL:user/"--login-path=local"|database
+NAME_5 = MYSQLDB_BAK
+MODE_5 = FTP
+FTP_5  = user:password@host
+FTP_DEST_5 = /mysqlbackup/
+MAXGEN_5 = 4
