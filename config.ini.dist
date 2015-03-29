@@ -1,0 +1,171 @@
+#############################################################################
+# Config Settings for SGLBackup
+# $Id: config.ini.dist,v 1.10 2010/10/19 08:23:45 siegel Exp $
+#############################################################################
+
+[COMMAND]
+
+###############################################################################
+# Specify your mail command if you want errors reported by email.
+# {SUBJECT}   -> Will be replaced by the email subject text
+# {BODY_TEXT} -> Will be replaced by the email body text
+###############################################################################
+#MAIL_CMD = /usr/bin/printf "%b" "{BODY_TEXT}" | /bin/mail -s "{SUBJECT}" webmaster@saschapfalz.de
+
+###############################################################################
+# Specify full path to your GNU TAR program without any parameters.
+# (script uses -cf)
+###############################################################################
+
+TAR = /bin/tar
+
+###############################################################################
+# Add here the parameter to be used with TAR. If not given, the
+# parameters defaults to "-chf"
+###############################################################################
+
+TAROPTS = --ignore-failed-read --create -f
+
+###############################################################################
+# Specify full path to your GZIP program WITH all required parameters!
+###############################################################################
+
+GZIP = /usr/bin/bzip2 --best --force
+
+###############################################################################
+# Specify here which extension the choosen packer uses,
+# this is REQUIRED!!!! (V0.3+)
+###############################################################################
+
+GZIP_EXT = .bz2
+
+###############################################################################
+# temporary dir definition, if not specified /tmp is used.
+###############################################################################
+
+TMPDIR = /tmp
+
+###############################################################################
+# Logfile path to use. If you want no logfile remove or comment this
+# parameter.
+###############################################################################
+
+LOGFILE = /var/log/sglbackup.log
+
+###############################################################################
+# Full path where to find the "mysqldump" utility used to perform
+# MySQL backups.
+# If not defined MySQL support is disabled. (V0.33+)
+###############################################################################
+
+MYSQLDUMP = /usr/bin/mysqldump
+
+###############################################################################
+# Additional options passed to mysqldump, here to allow exporting of routines
+# and triggers which is supported since MySQL 5.x
+###############################################################################
+
+MYSQLDUMPOPTS = --routines --trigger
+
+###############################################################################
+# VLDB support: Specify here the full path to the "mknod" SGLBackup should
+# use when creating a named pipe to export very large databases.
+# You have to set also the config parameter "VLDB" to YES in the backupset
+# configuration.
+###############################################################################
+
+MKNOD = /bin/mknod
+
+###############################################################################
+# Path to the "scp" and "ssh" executables.
+# If this is not defined SCP copy mode is disabled.
+###############################################################################
+
+SCP_BIN = /usr/bin/scp
+SSH_BIN = /usr/bin/ssh
+
+###############################################################################
+# Opt. description for this host.
+# Use this to have a hint added to e-mail notifications from which host this
+# Messsage was sent. If not set the uname parameter is read and used.
+###############################################################################
+#HOST_DESCRIPTION =
+
+###############################################################################
+# Here are all backup sets defined.
+# DIR_<x>         => Full path to directory which should be backupped
+#
+# NAME_<x>        => Name of Backup Set
+#
+# MODE_<x>        => Defines modes of Backup. You can specify one or any of them
+#                    for every backupset.
+#                    FCOPY  => File copy
+#                    FTP    => FTP backup
+#                    SCP    => Use SecureCopy (SSH)
+#
+# DEST_<x>        => When using FCOPY mode, this is the destination directory
+#                    where the backup should be moved to.
+#
+# FTP_<x>         => Logindata when using FTP mode. Format is:
+#                    USER:PASSWORD@HOST:PORT
+#
+# SCP_<x>         => Logindata when using SCP mode. Format is:
+#                    USER@HOST:TARGETDIRECTORY
+#
+# SCP_OPTS_<x>    => Optional additional parameter for SCP to use
+#
+# SSH_OPTS_<x>    => Optional additional parameter for SSH to use
+#
+# FTP_DEST_<x>    => Directory on destination FTP server. SGLBackup cwd() into
+#                    this directory before performing any file operation.
+#
+# MAXGEN_<x>      => How many backup sets you want to keep. If more sets are
+#                    available than specified here SGLBackup will start to
+#                    remove the oldest copies until we have this value reached.
+#                    If not defined auto-cleanup will not be performed.
+#
+# VLDB_<x>        => Yes/No. Set to YES for Oracle backups to perform backups
+#                    via named pipes. See docs for further details about this parameter.
+#
+# COMPRESS_<x>    => Yes/No. Set to NO to skip calling the cruncher after the
+#                    TAR is done. This won't work for VLDB exports, the packer
+#                    will be used for VLDB in any case. Defaults to YES.
+###############################################################################
+
+[BACKUP_SETS]
+
+DIR_0 = /html/F1
+NAME_0 = f1-timer
+MODE_0 = FTP
+FTP_0  = user:password@host
+FTP_DEST_0 = /
+MAXGEN_0 = 7
+
+DIR_1 = /html/sgl
+NAME_1 = SieGeLs_Website
+MODE_1 = FCOPY
+DEST_1 = /storage
+MAXGEN_1 = 5
+
+DIR_2 = ORACLE:SCOTT/TIGER@MYDB|SCOTT
+NAME_2 = ORADB_SCOTT
+MODE_2 = FTP
+FTP_2  = user:password@host
+FTP_DEST_2 = /orabackup/
+MAXGEN_2 = 4
+
+DIR_3 = MYSQL:user/password@localhost|database
+NAME_3 = MYSQLDB_BAK
+MODE_3 = FTP
+FTP_3  = user:password@host
+FTP_DEST_3 = /mysqlbackup/
+MAXGEN_3 = 4
+
+DIR_4     = /home/siegel/test
+NAME_4    = test_directory
+MODE_4    = SCP,FCOPY
+DEST_4    = /backups
+MAXGEN_4  = 5
+SCP_4     = siegel@192.168.255.2:/home/siegel/baktest
+SCP_OPTS_4= -q -P9999 -i/home/siegel/.ssh/scp-backup-user.identity
+SSH_OPTS_4= -i/home/siegel/.ssh/scp-backup-user.identity -p9999

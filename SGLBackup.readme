@@ -1,0 +1,20 @@
+Short   : Backupscript for directories and Databases
+Author  : Sascha 'SieGeL' Pfalz (webmaster@saschapfalz.de)
+Uploader: Sascha 'SieGeL' Pfalz (webmaster@saschapfalz.de)
+Type    : comm/misc
+Kurz    : Backupskript für Directories und Datenbanken
+Requires: Perl 5.61+
+Version : 0.40
+
+SGLBackup is a small perlscript that is able to backup directories or
+MySQL and Oracle databases.
+This script was mainly programmed for my private purposes to have an easy
+and fully automatic process to backup my own created Websites and databases.
+Development was always focused to have less work as possible with the whole
+backup process, the only thing I have to do manually is burning the backups
+on CDs every weekend.
+
+V0.39 fixes some bugs and introduces support for wildcards.
+
+V0.40 fixes some small bugs and adds support for additional mysqldump options.
+---------------------------------------------------------------------[EOF]---

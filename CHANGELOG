@@ -1,0 +1,224 @@
+SGLBackup history
+---------------------------------------------------------------------------
+
+V0.55 (29-Mar-2015) - Made password option for MySQL dumps obsolete.
+
+V0.44 (06-Jan-2015) - Excluded both "performance_schema" and
+                      "information_schema" when doing mysql exports.
+
+      (23-Feb-2014) - Added new parameter "HOST_DESCRIPTION" which can be
+                      used to describe in detail on which system SGLBackup
+                      is running whenever an error email is sent.
+                      If not given, the output of "uname -n" is used.
+
+                    - Updated german README
+
+V0.43 (25-Jun-2013) - Added new parameter "EXCLUDE_", which allows to
+                      exlude directories when pattern is active. Note that
+                      this is currently only supported for directories!
+                      Just enter here the relative names of the directories
+                      you do not want to backup as comma-separated list:
+
+                      EXCLUDE_0 = t1,t2
+
+                      Will skip directories t1 and t2 inside the given
+                      backup path.
+
+V0.42 (21-May-2013) - Changed MySQL export, if database
+                      "information_schema" is found, the export will be
+                      skipped for that db. I've added this feature to
+                      avoid error messages while trying to export this
+                      database, which is in turn mysql's data dictionary.
+                      Maybe this check will be added as configurable
+                      option, will see.
+
+      (10-Feb-2013) - Changed MySQL export, instead of writing first the
+                      backup file and zip'ing it afterwards, both steps
+                      are now done in one pass by pipeing the export.
+
+V0.41 (12-Aug-2012) - Added possibility to use * as destination directory
+                      marker. This makes only sense when used together with
+                      the pattern option. See Readme for details!
+
+      (27-Aug-2011) - Added email reporting of errors that may have occured
+                      during execution. This requires configuring a new
+                      keyword in the [COMMAND] section called "MAIL_CMD".
+                      See readme files for details.
+
+                    - Added speed indicator for FTP/SCP uploads and file
+                      copies, this allows to see how the internet line
+                      performs.
+
+                    - Added locking functionality to avoid double starts.
+
+      (24-May-2011) - Added backupset in front of every logentry.
+
+                    - Added max. generations per backup to ShowConfig.
+
+      (12-Oct-2010) - SCP copy is now working, added new parameter SSH_OPTS_<x>
+                      as we need SSH to get the list of existing backup files
+                      to implement generations support.
+
+                    - Off-loaded Logging functions and signal handlers to
+                      sgl_utils.pm.
+
+      (10-Oct-2010) - Started with integration of new copy mode SCP.
+
+                    - Added perl module "sgl_utils.pm" and off-loaded some
+                      global functions from SGLBackup.pl to this module.
+
+      (15-Sep-2010) - Rewritten code to use more subs, specially for the
+                      execution of external shell commands.
+
+                    - Added new parameter for backupsets called
+
+                          COMPRESS
+
+                      If set to NO the call to the compressor tool will be
+                      skipped. Useful if you have plenty of hard disc space
+                      and won't use cpu power to compress the tar archive.
+                      Note that for VLDB the compression is done in any case
+                      and cannot be disabled. The setting is simply ignored
+                      if you try it anyway.
+
+V0.40 (04-May-2008) - Fixed a problem in CheckGenerations(). I've used a
+                      wrong regular expression which may result in detecting
+                      wrong filenames when checking for old backups. This is
+                      now fixed by checking if the names STARTS (!) with the
+                      same strings, not if the checked string is INSIDE the
+                      filename as previous versions have done.
+
+      (21-Feb-2008) - Added config option "MYSQLDUMPOPTS" which allows to
+                      pass specific parameter to the mysqldump utility.
+                      There is no specific default value, however if you
+                      are using MySQL 4.1 or higher it maybe useful to add
+                      the options "--routines --triggers" to have these objects
+                      included in your backups.
+
+V0.39 (05-Jun-2006) - Second public release.
+
+      (01-May-2006) - MySQL Database Backups now supports also the wildcard
+                      system that was introduced for directories. The same
+                      rules apply here.
+
+      (21-Apr-2006) - Added new backupset parameter "VLDB_<x>=YES|NO".
+                      Currently this is only used for Oracle Exports and
+                      allows to "pipe" the Oracle Export directly through
+                      gzip without the need of saving the file, tar'ing and
+                      gzipping it afterwards. This was required as one of
+                      my Databases @ work has now a 51GB export file, which
+                      simply does not fit anymore on our discs. To avoid
+                      this excessive disk usage one can activate this
+                      parameter. Please note that in this mode the LOGFILE
+                      of Oracle's export is not copied, and also ONLY (!)
+                      FCOPY mode is supported, you cannot sent a named pipe
+                      directly to a FTP server (at least I have no idea how
+                      this should work...). To let this work you have to
+                      configure also the new COMMAND parameter MKNOD which
+                      should point to the "mknod" executable (full path).
+
+V0.38 (09-Apr-2006) - Parameter for TAR are now configurable. Just add
+                      TAROPTS = <parameters> to the config file. If this
+                      parameter is not set SGLBackup defaults to "-chf".
+                      Thanks to Byteandi for this idea.
+
+      (05-Mar-2006) - Added support for pattern based directories. Idea by
+                      Andreas Lüth. SGLBackup, when detecting a '*' as pattern
+                      indicator will add all matching directory entries as
+                      own config entries and backups all found entries.
+                      The pattern entry itself is of course skipped. This allows
+                      to backup a lot of directories at once without the need
+                      of writing down hundreds of configuration entries.
+
+      (04-Mar-2006) - All errors are now printed to STDERR, this helps
+                      to detect errors when running under cron.
+
+                    - Fixed missing temporary files problem. If the script
+                      encountered a problem during FTP transfer the temporary
+                      backup file was not removed. This happens whenever the
+                      script was not able to put the backup file to the desired
+                      destination. Thanks to Byteandi for reporting this.
+
+      (01-Mar-2006) - Added parameter "-h" to TAR call (GNU Tar required),
+                      this enforces symbolic links to be dereferenced before
+                      adding, previous version only adds a 0 Byte file when
+                      a symbolic link was found.
+
+V0.37 (30-Oct-2005) - First public release.
+
+                    - Removed docs and changelog from script and put them
+                      into separate files. Also german docs are now available.
+
+V0.36 (29-Oct-2005) - SGLBackup now supports management of backupfiles.
+                      This allows to have a specified amount of backups
+                      stored on target machine instead of fillin up the
+                      hd space with unlimited backup files :) To support
+                      this you have to add a new config parameter called
+                      MAXGEN_<x> = <amount_of_files> to every backupset
+                      definition. If this is set SGLBackup checks after
+                      backup if more files are stored on target than defined
+                      here. In this case the oldest files are removed until
+                      the maximum amount of files is reached. If this
+                      parameter is not set SGLBackup skips checking.
+
+                    - Writing to Syslog removed, if logfile is not defined
+                      all logfile functions are disabled.
+
+V0.35 (09-Oct-2005) - The Config::IniFiles New() method was not correctly
+                      checked against errors, which made it almost
+                      impossible to react on errors in the configuration
+                      file! This is now fixed, in case of an error SGLBackup
+                      dumps out the error messages from the config module.
+
+                    - The configuration parameter MAX_SETS is now obselete,
+                      the script checks itself how many configuration options
+                      are set. You have to check that the numbers are counted
+                      incrementally without any "jumps" in between!
+                      (0,1,2,3,4 is okay, while 0,2,3,4 is NOT!)
+
+V0.34 (17-Sep-2005) - Added command line parameter "--checkgen" which checks
+                      how many generations are available for all configured
+                      backupsets. If one of them has more generations
+                      available than configured the oldest copies of the
+                      backups will be removed.
+                      Note that this also requires a new configuration
+                      parameter MAXGEN_<x> which must be set for all
+                      backupsets you want to have monitored by SGLBackup.
+
+V0.33 (10-Sep-2005) - Added new config.ini parameter "MYSQLDUMP" which
+                      configures the absolute path to the "mysqldump"
+                      utility. If this parameter is not set the MySQL
+                      support is disabled.
+                      MySQL Export can either export a single database from
+                      a given host or all available databases. Please note
+                      that exporting a complete database requires the
+                      privileges to access all databases, else the script
+                      will exit with an error!
+
+                    - Added new config.ini parameter "LOGFILE" which
+                      configures a full pathname where you want the logfile
+                      to be written to. If no path is given the script writes
+                      to syslog() else all operations the script performs are
+                      now logged, this hopefully makes it easier to detect
+                      any problems during operation.
+
+V0.32 (09-Jul-2005) - ...forgotten to add change log :(
+
+V0.31 (23-Apr-2005) - Added trim() function which is applied on all
+                      configuration values, this way hopefully invisible
+                      spaces will be removed which may lead to massive
+                      confusion...
+
+V0.3  (15-Apr-2005) - Added new config option "GZIP_EXT" which defines
+                      the extension used by the selected packer. This way
+                      we can use the much more efficient Bzip2 packer in
+                      favour of gzip.
+
+V0.2  (07-Dec-2004) - Added Oracle export functionality. This allows to
+                      perform logical exports of given schemata or the
+                      full database.
+
+
+V0.1 (14-Nov-2003)  - Initial Version.
+-----------------------------------------------------------------------------
+$Id: CHANGELOG 20 2014-02-23 08:57:45Z siegel $

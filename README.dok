@@ -1,0 +1,579 @@
+SGLBackup.pl - Deutsche Dokumentation - Letztes Update am 23. Februar 2014
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+SGLBackup ist ein kleines Perl Script zum automatisierten Backup beliebiger
+Verzeichnisse sowie MySQL und Oracle Datenbanken.
+Ich habe dieses Script primär für mich privat erstellt um meine ganzen
+Websites, Perl-Scripte und Developer Datenbanken regelmässig auf einen
+anderen Rechner zu sichern. Dabei stand der Fokus der Entwicklung auf
+eine möglichst vollautomatische Funktion des Scripts, d.h. ich möchte
+eigentlich nur noch einmal pro Woche die Backups auf CD brennen müssen,
+der Rest sollte vom Script automatisch gehandelt werden.
+
+Folgende Features beherrscht das Script:
+
+- Beliebige Anzahl von Filesystem Backups (per Directory)
+
+- Beliebige Anzahl von MySQL Backups (via mysqldump)
+
+- Beliebige Anzahl von Oracle Backups (via Oracle Export Utility)
+
+- Support für gzip oder bzip2, um die erstellten Backups zu komprimieren
+
+- Backups können via File Copy oder per (S)FTP auf ein Target Rechner
+  kopiert werden
+
+- Einfache Konfiguration via Textfile im .ini Style
+
+- Unterstützung von Wildcards für Verzeichnisse (V0.38+)
+
+- Unterstützung von Wildcards für MySQL Datenbanken (V0.39+)
+
+- Unterstützung für automatisch erstellte Zielverzeichnisse (V0.41+)
+
+- Kostenlos :-)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WICHTIG !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ICH ÜBERNEHME KEINE VERANTWORTUNG FÜR DIE ERSTELLTEN BACKUPS, SEI ES IN
+BEZUG AUF VOLLSTÄNDIGKEIT ODER LAUFFÄHIGKEIT!!! ES GAB BEI MIR NIE
+IRGENDEINEN FEHLER, TROTZ ALLEM GIBT ES KEINE 100% FEHLERFREIE SOFTWARE!
+JEDER SETZT DIESES SCRIPT AUF EIGENE VERANTWORTUNG EIN, UND IST VON DAHER
+AUCH FÜR ALLE FOLGEN SELBST VERANTWORTLICH!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WICHTIG !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+INSTALLATION UND KONFIGURATION
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Bevor das Script zum Einsatz kommen kann, müssen folgende Vorraussetzungen
+erfüllt sein:
+
+a) Perl-Module
+
+Das Script benötigt folgende Perl Module:
+
+Config::IniFiles
+Getopt::Long
+Pod::Usage
+Time::HiRes
+Net::FTP
+File::Copy
+File::Basename
+
+Ein grosser Teil dieser Module ist bereits im Perl Core enthalten, alle
+anderen kann man bequem über www.cpan.org nachinstallieren.
+
+b) Zusatz-Tools:
+
+Die gesamte Funktionalität des Scripts beruht auf die "Fernsteuerung"
+von 3rd Party Tools, die da wären:
+
+ - Tar (GNU Tar!) für die Erstellung der Backups
+
+ - GZip oder BZip2 für die Komprimierung der Backups
+
+ - Mysqldump (falls MySQL gesichert werden soll)
+
+ - Oracle Export (falls Oracle gesichert werden soll)
+
+ - Scp & Ssh Programme (falls SCP Unterstützung gewünscht ist)
+
+Es muss MINDESTENS TAR und einer der beiden Packer gzip oder bzip2 vorhanden
+sein, alles andere ist optional.
+Die Pfade zu diesen Tools werden in der Configdatei eingetragen.
+
+Sind obige Anforderungen erfüllt, geht als nächstes um die Konfiguration,
+dieses geschieht über eine Textdatei, die per default "config.ini" heisst und
+im selben Verzeichnis wie SGLBackup.pl selbst gesucht wird.
+Der Aufbau der Konfigdatei entspricht dem gängigen "Ini-Style" Standard, d.h.
+die einzelnen Optionen sind in Abschnitten unterteilt, die jeweils von einem
+Abschnittsnamen in eckigen Klammern gruppiert sind. Die eigentlichen Parameter
+werden nach klassischer Art "NAME = WERT" zugewiesen.
+Kommentare werden mit einem # eingeleitet und ignoriert.
+
+Folgende Parameter werden unterstützt:
+
+Abschnitt [COMMAND]
+-------------------
+
+-----------------------------------------------------------------------------
+TAR = /usr/local/bin/tar
+-----------------------------------------------------------------------------
+Kompletter Pfad zum GNU TAR Programm.
+
+
+-----------------------------------------------------------------------------
+TAROPTS = -chf
+-----------------------------------------------------------------------------
+Parameter für TAR, wenn dieser Parameter nicht angegeben wird verwendet das
+Skript automatisch "-chf" als default parameter. (V0.39+)
+
+
+-----------------------------------------------------------------------------
+GZIP = /usr/bin/gzip --fast --force
+-----------------------------------------------------------------------------
+Kompletter Pfad zum gzip oder bzip2 inklusive Pack Optionen
+Alternativ: GZIP = /usr/local/bin/bzip2 --best --force
+
+
+-----------------------------------------------------------------------------
+GZIP_EXT = .gz
+-----------------------------------------------------------------------------
+Die Dateierweiterung des verwendeten Packers, entweder ".gz" oder ".bz2" .
+
+
+-----------------------------------------------------------------------------
+TMPDIR = /wd/temp
+-----------------------------------------------------------------------------
+Temporäres Verzeichnis, wenn nichts angegeben ist wird "/tmp" verwendet.
+
+
+-----------------------------------------------------------------------------
+LOGFILE = /export/home/siegel/SGLBackup/sglbackup.log
+-----------------------------------------------------------------------------
+Optionale Angabe für das Logfile. Wenn nicht angegeben wird kein Logfile
+geschrieben.
+
+
+-----------------------------------------------------------------------------
+MYSQLDUMP = /usr/local/mysql/bin/mysqldump
+-----------------------------------------------------------------------------
+Wenn MySQL Datenbanken gebackupped werden sollen, muss hiermit der
+vollständige Pfad zum Programm "mysqldump" angegeben werden. Wenn dieser
+Parameter nicht angegeben wird ist die MySQL Unterstützung deaktiviert.
+
+
+-----------------------------------------------------------------------------
+MYSQLDUMPOPTS = --routines --trigger
+-----------------------------------------------------------------------------
+Mit diesem Parameter können weitere Optionen an das Programm mysqldump
+übergeben werden. In dem gezeigten Beispiel wird das Exportieren von
+Funktionen, Prozeduren und Triggern aktiviert. Diese neuen Datenbankfunktionen
+sind seit der Version 5.x integriert, nur leider aktiviert mysqldump das
+Exportieren dieser Objekte nicht automatisch...
+
+Verfügbar seit Skriptversion 0.40.
+
+
+-----------------------------------------------------------------------------
+MKNOD = /bin/mknod
+-----------------------------------------------------------------------------
+Parameter konfiguriert vollständigen Pfad zum "mknod" Executable, welches
+zur Erzeugung einer Named Pipe benötigt wird. Nur notwendig wenn VLDB Modus
+verwendet werden soll (siehe weiter unten im Abschnitt BACKUP_SETS).
+
+
+-----------------------------------------------------------------------------
+MAIL_CMD = /usr/bin/printf "%b" "{BODY_TEXT}" | /bin/mail -s "{SUBJECT}" your@email.com
+-----------------------------------------------------------------------------
+Wenn gesetzt, versendet das Skript bei Fehlern automatisch eine E-Mail an die
+angegebene E-Mail. Dabei wird {BODY_TEXT} durch die E-Mail Nachricht ersetzt
+und {SUBJECT} mit dem E-Mail subject.
+
+Verfügbar seit Skriptversion 0.41.
+
+
+
+Section [BACKUP_SETS]
+---------------------
+
+-----------------------------------------------------------------------------
+DIR_<x> = /html/testpath1
+-----------------------------------------------------------------------------
+Bestimmt das Quellverzeichnis für das angegebene Backupset <x>.
+Dieses ist ein Multimode Parameter, da man hiermit zum einen Verzeichnisse
+und zum anderen Datenbank Definitionen angeben kann. Folgende Formate sind
+möglich:
+
+ - Wenn ein kompletter Pfadname angegeben wird (mit führendem '/'), dann
+   wird dieses angegebene Verzeichnis gesichert.
+
+ - Wenn entweder "ORACLE:" oder "MYSQL:" als erstes Schlüsselwort angegeben
+   wird, wird die jeweilige Datenbank gesichert. Das dazu gehörige Format
+   lautet für Oracle:
+
+   ORACLE:<username>/<password>@<tnsname>|<schema>
+
+   oder für MySQL
+
+   MYSQL:<username>/<password>@<hostname>|<database>
+
+   Ohne Angabe des Schemas wird die gesamte Datenbank gesichert.
+   Zum Exportieren wird das jeweilige Tool $ORACLE_HOME/bin/exp für Oracle
+   und "mysqldump" für MySQL (Siehe Parameter MYSQLDUMP) verwendet.
+
+   Seit V0.39 ist es auch möglich, bei MySQL Datenbanken einen Wildcard zu
+   verwenden. Das würde dann wie folgt aussehen:
+
+   MYSQL:<username>/<password>@<hostname>|*
+
+   Diese Konfiguration würde z.B. ALLE Datenbanken der MySQL Datenbank
+   als separate Dateien sichern.
+
+   MYSQL:<username>/<password>@<hostname>|test*
+
+   Würde dann nur Datenbanken sichern, deren Name mit test beginnt.
+
+   Siehe dazu auch die Beispiele weiter unten.
+
+Wenn Verzeichnisse gesichert werden sollen muss darauf geachtet werden das
+die notwendigen Leserechte vorhanden sind um das angegebene Verzeichnis
+vollständig zu sichern!
+
+Seit V0.38 gibt es auch die Möglichkeit, Wildcards als Verzeichnisnamen zu
+verwenden, z.B.:
+
+DIR_0 = /html/php*
+
+Aus dieser Definition würde SGLBackup dann automatisch alle Verzeichnisse
+backuppen, die auf /html/php* matchen würden.
+Siehe zu diesem Thema auch noch der separate Abschnitt am Ende dieser
+Dokumentation.
+
+
+-----------------------------------------------------------------------------
+NAME_<x> = TESTBACKUP
+-----------------------------------------------------------------------------
+Ein eindeutiger Name für das Backupset. Bitte nur Zeichen verwenden, die auch
+in einem Dateinamen verwendet werden könenn, da SGLBackup diesen Namen als
+Prefix für den Zielnamen verwendet!
+
+Sind Wildcards in Verwendung wird dieser Name als Prefix für alle gefundenen
+Verzeichnisse verwendet.
+
+
+-----------------------------------------------------------------------------
+MODE_<x> = FTP,FCOPY,SCP
+-----------------------------------------------------------------------------
+Hiermit wird angegeben, wie das Backup gesichert werden soll. Derzeit sind
+FTP, SCP und FCOPY möglich, weitere werden ggf. später folgen.
+
+Wenn man z.B. eine externe Festplatte verwendet, dann kann man als MODE
+FCOPY (FileCopy) verwenden und muss einen gültigen Pfad mit Schreibrechten
+im dazugehörigen Parameter "DEST_<x>" angeben.
+
+Alternativ kann man auch FTP als Mode verwenden, in diesem Fall muss der
+Parameter "FTP_<x>" mit korrekten Zugangsdaten zum FTP Server konfiguriert
+werden.
+
+Seit 0.41 ist auch SCP als Backupmodus unterstützt, dazu wurden noch die
+zusätzlichen Parameter "SCP_OPTS_<x>" und "SSH_OPTS_<x>" eingebaut, mit
+deren Hilfe z.B. Publickey Authentifizierung ermöglicht wird.
+
+Es können auch mehrere Parameter kombiniert angegeben werden, z.B.:
+
+MODE_0 = FTP,FCOPY
+
+Würde bedeuten das das Backup von Set #0 zu einem FTP server und auf ein
+Zielverzeichnis gesichert wird.
+
+
+-----------------------------------------------------------------------------
+FTP_<x> = user:pass@host
+-----------------------------------------------------------------------------
+Wenn FTP als Modus ausgewählt wurde muss hier ein gültiger FTP Login zum
+Backup FTP Server angegeben werden. Das Format ist:
+
+USER:PASSWORD@HOST:PORT
+
+Wenn der FTP Server auf den Standard Port 21 lauscht kann die Port Angabe
+weggelassen werden.
+
+
+-----------------------------------------------------------------------------
+FTP_DEST_<x> = /
+-----------------------------------------------------------------------------
+Hiermit wird das Zielverzeichnis auf dem FTP Server bestimmt, wo die Backups
+abgelegt werden sollen. Bitte sicherstellen das SGLBackup dort auch schreiben
+darf!
+
+
+-----------------------------------------------------------------------------
+DEST_<x> = /backups
+-----------------------------------------------------------------------------
+Das ist das Zielverzeichnis für Backups wenn der FCOPY Modus ausgewählt ist.
+Auch hier muss sichergestellt sein das SGLBackup dort Schreibrechte hat!
+
+-----------------------------------------------------------------------------
+SCP_<x> = user@host:path
+-----------------------------------------------------------------------------
+Bei dem Modus "SCP" muss dieser Parameter angegeben werden. Aus Sicherheits-
+gründen wird hier kein Passwort verwendet, stattdessen muss mit dem
+zusätzlichen Parameter SCP_OPTS_<x> ein Keyfile angegeben werden, welches für
+die Authentifizierung verwendet werden soll. Außerdem muss zusätzlich zum
+SCP_OPTS_<x> Parameter noch der SSH_OPTS_<x> Parameter angegeben werden, da
+einige Funktionen nur direkt über SSH ausgeführt werden können (z.B. die
+Anzeige eines Verzeichnisses).
+
+
+-----------------------------------------------------------------------------
+SCP_OPTS_<x> = -q -P9999 -i/home/siegel/.ssh/scp-backup-user.identity
+SSH_OPTS_<x> = -i/home/siegel/.ssh/scp-backup-user.identity -p9999
+-----------------------------------------------------------------------------
+Über diese beiden Parameter werden die zusätzlichen Parameter für den SCP
+Modus definiert, wie hier z.B. die Angabe eines Keys (-i), des verwendeten
+Ports (-p) und bei SCP den quiet Mode (-q).
+
+
+-----------------------------------------------------------------------------
+MAXGEN_<x> = 7
+-----------------------------------------------------------------------------
+Mit diesem Parameter kann man die Anzahl der vorgehaltenen Backups
+limitieren. Ohne diesen Parameter würde SGLBackup bei jedem Aufruf ein neues
+Backupfile erstellen und auf den Zielrechner kopieren, das kann natürlich
+sehr schnell dazu führen das die Platten voll laufen.
+Um das zu verhindern kann man mit diesem Parameter angeben, wieviele Backups
+auf dem Zielrechner vorgehalten werden sollen. Überschreitet die Anzahl der
+Dateien diesen Wert löscht SGLBackup die ältesten Dateien bis die Anzahl
+diesem Wert entspricht.
+
+
+-----------------------------------------------------------------------------
+VLDB_<x> = <yes|no>
+-----------------------------------------------------------------------------
+Über diesen Parameter kann bei Oracle Backups ein anderes Verhalten aktiviert
+werden. Normalerweise exportiert SGLBackup Oracle Datenbanken mit Hilfe des
+Export Utility zuerst das angegebene Schema bzw. Datenbank inklusive Logfile
+in das temporäre Verzeichnis, erzeugt dann aus beiden Teilen ein Tar Archiv
+und packt dieses anschliessend mit dem eingestellten Packer. Bei sehr grossen
+Datenbanken kann das aber zu Problemen mit dem verfügbaren Festplattenplatz
+kommen, da ja im Grunde der doppelte Platz der Export Datei verfügbar sein muss.
+Wenn der notwendige Platz nicht mehr da ist kann man mit VLDB_<x> = YES
+SGLBackup anweisen, das Exportfile durch eine named Pipe direkt zu dem
+eingestellten Packer zu schicken, dadurch wird effektiv nur der Platz der
+gepackten Datei benötigt.
+Nachteil bei dieser Methode ist jedoch, das das Logfile des Export Utilities
+nicht mehr mit gesichert werden kann und bei Multi-CPU Systemen führt dieses
+zu erhöhter Systemlast, da Export UND Packer gleichzeitig jeweils auf einer
+CPU ausgeführt werden.
+Damit VLDB verwendet werden kann muss ausserdem der Konfigparameter
+
+MKNOD = <pfad_zum_mknod_executable>
+
+gesetzt werden, damit SGLBackup in der Lage ist, eine named Pipe zu erzeugen.
+
+
+-----------------------------------------------------------------------------
+COMPRESS_<x> = <yes|no>
+-----------------------------------------------------------------------------
+Über diesen Parameter kann das Packen via bzip2 oder gzip deaktiviert werden
+falls CPU Power wichtiger ist als Festplattenspeicher. Bitte beachten das
+bei VLDB_<x> der Packer nicht deaktiviert werden kann!
+Dieser Parameter ist seit V0.41 implementiert.
+
+
+-----------------------------------------------------------------------------
+EXCLUDE_<x> = dir1,dir2,...
+-----------------------------------------------------------------------------
+Ermöglicht das Überspringen bestimmter Verzeichnisse bei der Sicherung von
+Pfaden mit Wildcards, dabei werden bei der Ermittlung der zu sicherenden
+Pfade alle Verzeichnisse ausgeschlossen, die hier aufgeführt sind. Mehrere
+Verzeichnisse sind dabei mit einem Komma zu trennen.
+Dieser Parameter ist seit V0.43 implementiert.
+
+-----------------------------------------------------------------------------
+
+Siehe auch die Datei config.ini.dist für eine Beispiel Konfigurationsdatei.
+
+
+BENUTZUNG DES SKRIPTS
+~~~~~~~~~~~~~~~~~~~~~
+
+Wird SGLBackup ohne Parameter aufgerufen, erstellt SGLBackup von ALLEN
+konfigurierten Backupsets ein Backup. Das Skript unterstützt auch
+Kommandozeilen Parameter, die da wären:
+
+--help         Kurze Übersicht der unterstützten Parameter
+
+--man          Ausführliche Beschreibung
+
+--config       Alternatives Konfigfile (Default ist config.ini)
+
+--backupset    Zu bearbeitende SetNummer(n) (Default sind alle)
+
+--showconfig   Zeigt gelesene Konfiguration an und beendet sich.
+
+--checkgen     Prüft Anzahl vorhandener Backupfiles auf dem Zielrechner
+
+
+Um ein Backup der Sets 0,1,2 und 4 durchzuführen:
+
+$> ./SGLBackup.pl --backupset=0,1,2,4
+
+Anzeige der Konfiguration:
+
+$> ./SGLBackup.pl --showconfig
+
+Testen der Anzahl der verfügbaren Backupfiles für alle Sets:
+
+$> ./SGLBackup.pl --checkgen
+
+Testen der Anzahl der verfügbaren Backupfiles für Sets 0 und 4:
+
+$> ./SGLBackup.pl --backupset=0,4 --checkgen
+
+Ich denke das sollte nicht allzu schwer sein ;)
+
+
+BEISPIELE
+~~~~~~~~~
+MySQL Beispiele:
+
+Backup von Datenbank "GP4RL" auf dem Host "localhost" und dem
+Usernamen "scott" und dem Passwort "tiger":
+
+DIR_<x> = MYSQL:scott/tiger@localhost|GP4RL
+
+Vollständiges Backup einer MySQL Datenbank als User "root" auf dem Host
+"192.168.255.8" ohne (!!!!) Passwort (das macht hoffentlich NIEMAND!):
+
+DIR_<x> = MYSQL:root/@localhost
+
+
+Oracle Beispiele:
+
+ACHTUNG: Da das Script das Programm "exp" aus der Oracle Installation
+aufruft ist eine vollständige Client oder Server Installation notwendig,
+der Instantclient reicht dafür nicht aus! Ausserdem muss ORACLE_HOME
+gesetzt sein, ansonsten bricht das Script mit einer Fehlermeldung ab!
+
+Backup des Schemas "SCOTT" auf dem TNSHost "NETRA" unter Verwendung
+des DBA Accounts "SYSTEM" mit dem Passwort "MANAGER":
+
+DIR_<x> = ORACLE:SYSTEM/MANAGER@NETRA|SCOTT
+
+Backup der kompletten Oracle Datenbank auf dem TNSHost "NETRA" unter
+Verwendung des DBA Accounts "SYSTEM" mit dem Password "MANAGER":
+
+DIR_<x> = ORACLE:SYSTEM/MANAGER@NETRA
+
+Backup des Schemas ORAOFFICE ohne Angabe eines TNSNames (also lokal)
+unter Verwendung des Schema Eigentümers "ORAOFFICE" mit dem
+Passwort "ORAPW":
+
+DIR_<x> = ORACLE:ORAOFFICE/ORAPW|ORAOFFICE
+
+
+
+VERWENDUNG VON WILDCARDS
+~~~~~~~~~~~~~~~~~~~~~~~~
+Seit Version 0.38 unterstützt das Skript Wildcards für Verzeichnisnamen
+sowie MySQL Datenbanken.
+Damit ist es z.B. möglich, hunderte von Verzeichnissen mit nur einem
+Konfigurationseintrag zu sichern. Dieses Feature ist z.B. für Provider
+wichtig, die alle Kundenverzeichnisse ohne grossen Aufwand sichern möchten.
+Es gibt allerdings einige Einschränkungen, wenn dieser Modus verwendet wird:
+
+- Das Pattern Zeichen darf (derzeit) nur AM ENDE des Verzeichnisnamens
+  stehen, der folgende Pfad ist also okay:
+
+  /html/*
+
+  während dieser nicht okay ist:
+
+  /html/test*me
+
+  Bitte darauf achten, da SGLBackup den letzteren Fall z.B. nicht als Pattern
+  findet und versuchen würde, dieses Verzeichnis zu sichern! Das gilt für
+  MySQL Datenbanken genauso!
+
+- Es können keine einzelnen Backupsets angegeben werden wenn Wildcards in
+  Benutzung sind. Der Grund dafür ist die Art, wie Wildcards aufgelöst werden.
+  SGLBackup fügt in die bestehende Konfiguration ALLE gefundenen Verzeichnisse
+  automatisch hinzu, das führt dann dazu das weitaus mehr Konfigsets vorhanden
+  sind als vom Benutzer selbst konfiguriert.
+  Wird trotz Angabe von Wildcards ein Backupset angegeben, beendet sich SGLBackup
+  mit einer dementsprechenden Fehlermeldung.
+
+- Alle gefundenen Verzeichnisse bzw. MySQL Datenbanken haben den selben
+  Kopiermodus (FTP/FCOPY), die selben FTP Logindaten und die selben max. Generationen
+  wie die eigentliche Definition mit dem Wildcard.
+
+- Der Name des Konfigsets, das den Wildcard enthält, dient als Prefix für
+  alle gefundenen Verzeichnisse bzw. Datenbanken.
+
+Um einmal aufzuzeigen, wie diese Konfiguration aussieht, hier ein kleines
+Beispiel, das ich zum Austesten dieser Funktionen verwendet habe:
+
+---[SNIP]---
+
+[BACKUP_SETS]
+
+DIR_0       = /html/*
+NAME_0      = html_auto
+MODE_0      = FCOPY
+DEST_0      = /wd/tests
+MAXGEN_0    = 7
+
+DIR_1       = MYSQL:root/root@localhost|*
+NAME_1      = MySQL_auto
+MODE_1      = FCOPY
+DEST_1      = /wd/tests
+MAXGEN_1    = 7
+
+
+---[SNAP]---
+
+Diese Konfiguration würde dann via --showconfig Parameter wie folgt aussehen:
+
+Configured backup sets:
+
+Backupset number (name)..: 0 (html_auto)
+Backup source............: /html/*
+Target destination.......: FCOPY: /wd/tests
+Defines pattern match....: Yes
+
+Backupset number (name)..: 1 (html_auto_Boinc-Stats)
+Backup source............: /html/Boinc-Stats
+Target destination.......: FCOPY: /wd/tests
+Defines pattern match....: No
+
+Backupset number (name)..: 2 (html_auto_CS)
+Backup source............: /html/CS
+Target destination.......: FCOPY: /wd/tests
+Defines pattern match....: No
+
+...und ~90 weitere Verzeichnisse sowie die MySQL Einträge
+
+Backupset number (name)..: 95 (MySQL_auto_F1)
+Backup source............: MYSQL:root/root@localhost|F1
+Target destination.......: FCOPY: /wd/tests
+Defines pattern match....: No
+Backup using named pipe..: No
+
+Backupset number (name)..: 96 (MySQL_auto_GP4RL)
+Backup source............: MYSQL:root/root@localhost|GP4RL
+Target destination.......: FCOPY: /wd/tests
+Defines pattern match....: No
+Backup using named pipe..: No
+
+
+Wie man in der Ausgabe sehen kann wurde der Name des Backupsets, welches
+den Wildcard enthält, als Prefix für alle gefundenen Verzeichnisse und
+Datenbanken verwendet und alle gefundenen Einträge haben die selben
+Einstellungen wie der Eintrag mit dem Wildcard.
+Logischweise wird der Eintrag mit dem Wildcard natürlich vom Backup
+ausgenommen, nur Einträge mit "Defines pattern match = No" werden vom
+Skript gesichert.
+
+Ich kann nur dringenst dazu raten ein separates Konfigfile zu verwenden wenn
+Wildcards verwendet werden sollen und dieses dem Skript mit dem "--config"
+Parameter zu übergeben.
+Ausserdem sollte mit dem "--showconfig" Parameter die Auflösung des Wildcards
+kontrolliert werden, um spätere Überraschungen auszuschliessen!
+
+
+WIE MAN MICH ERREICHT:
+~~~~~~~~~~~~~~~~~~~~~~
+Wenn jemand einen Bug gefunden oder Verbesserungsvorschläge hat kann man
+über folgende Adressen mit mir in Verbindung treten:
+
+  WWW: http://www.saschapfalz.de
+EMAIL: webmaster@saschapfalz.de
+
+
+Ein dickes Danke geht an Byteandi für seine Tests mit SGLBackup
+auf seinem Server und an Andreas Lüth für die Idee mit dem Wildcards!
+---------------------------------------------------------------------[EOF]---
+$Id: README.dok 20 2014-02-23 08:57:45Z siegel $

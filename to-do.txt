@@ -1,0 +1,6 @@
+Byti:
+
+- Bei FTP Problemen werden die temporären Dateien nicht gelöscht!
+
+- Ack Function optional (beim Löschen E-Mail Benachrichtigung)
+
