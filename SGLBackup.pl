@@ -650,7 +650,7 @@ sub ExportOracle($)
   my $oraexport = sprintf("%s/bin/exp",$ENV{'ORACLE_HOME'});
   if(!-x $oraexport)
     {
-    AddError(sprint("ExportOracle() FAILED!\n\nERROR: Oracle Export not found / not executable!\n\n"));
+    AddError(sprintf("ExportOracle() FAILED!\n\nERROR: Oracle Export not found / not executable!\n\n"));
     WriteToLog(sprintf("[%d] ERROR: Oracle Export not found / not executable! (%s)",$setnr,$cfg->{'name'}[$setnr]));
     return(undef);
     }
