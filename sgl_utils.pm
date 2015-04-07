@@ -1,14 +1,13 @@
 package sgl_utils;
 #
 # Module is used by SGLBackup.pl and other soon to come scripts to have a central code place available.
-# written in 2010-2014 by Sascha 'SieGeL' Pfalz <webmaster@saschapfalz.de>
+# written in 2010-2015 by Sascha 'SieGeL' Pfalz <webmaster@saschapfalz.de>
 #---------------------------------------------------------------------------
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
 #---------------------------------------------------------------------------
-# $Id: sgl_utils.pm 20 2014-02-23 08:57:45Z siegel $
 ###################################################################################################
 use strict;                                 # Report on all warnings
 use vars qw( @ISA @EXPORT_OK);              # Make our special vars accessable
@@ -24,7 +23,7 @@ use Data::Dumper;
 # Constant definitions
 ###################################################################################################
 
-use constant SGL_UTILS_VERSION  => '0.14';   # Version of this package
+use constant SGL_UTILS_VERSION  => '0.16';   # Version of this package
 
 ###################################################################################################
 # Exporter with important vars exported
@@ -449,6 +448,20 @@ sub ReadConfig($)
     {
     die (sprintf("CFG: '%s' is not executable!!\n\n",$testfile[0]));
     }
+  # V0.50: Check for known extensions, currently only bz2 and gz are known:
+  if($config->{'ext'} eq '.bz2')
+    {
+    $config->{'tar_opt'} = 'j';
+    }
+  elsif($config->{'ext'} eq '.gz')
+    {
+    $config->{'tar_opt'} = 'z';
+    }
+  else
+    {
+    die(sprintf("CFG: Unknown extension \"%s\" specified, only .gz or .bz2 are supported!\n\n",$config->{'ext'}));
+    }
+
   if(defined($config->{'mysqldump'}))
     {
     if(!-X $config->{'mysqldump'})
@@ -458,7 +471,16 @@ sub ReadConfig($)
     }
   if(!defined($config->{'taropts'}) || $config->{'taropts'} eq '')
     {
-    $config->{'taropts'} = '-chf';
+    $config->{'taropts'} = '-ch'.$config->{'tar_opt'}.'f';
+    }
+  else
+    {
+    # V0.50: Check if last parameter is 'f', die() if not (required for correct operation of tar!)
+    if(substr($config->{'taropts'},-1) ne 'f')
+      {
+      die(sprintf("CFG: TAROPTS Parameter has no 'f' value as last config option set [%s]",$config->{'taropts'}));
+      }
+    $config->{'taropts'} = substr(trim($config->{'taropts'}),0,length($config->{'taropts'})-1).$config->{'tar_opt'}.'f';
     }
   if(!defined($config->{'mysqldumpopts'}))
     {
@@ -855,11 +877,15 @@ Sascha 'SieGeL' Pfalz <webmaster@saschapfalz.de>E<10>
 
 =head1 VERSION
 
-This is sgl_utils.pm V0.15
+This is sgl_utils.pm V0.16
 
 =head1 HISTORY
 
 =over 2
+
+=item <Bv0.16 (07-Apr-2015)>
+
+Added check for known packer extensions, currently only .gz and .bz2 are allowed. This is used to tar and pack in one step using the correct modifier.
 
 =item <Bv0.15 (29-Mar-2015)>
 

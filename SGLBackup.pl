@@ -29,7 +29,7 @@ use sgl_utils qw(:all);             # Load in the global functions
 # Global Variables
 ###################################################################################################
 
-use constant VER => '0.45';         # Version of this script
+use constant VER => '0.50';         # Version of this script
 my %bd;                             # Backup Dirs, stored as DIR_0/NAME_0 pairs
 my $cfgfile = 'config.ini';         # Config filename, can be changed via --config=<> parameter
 my $cfg;                            # Configuration settings stored as hash ref
@@ -535,7 +535,7 @@ sub UploadSCP($$)
 
 ###################################################################################################
 #    NAME: TarAndZipSet()
-# PURPOSE: Creates the tar.gz file for passed set number
+# PURPOSE: Creates the tar.gz or tar.bz2 file for passed set number
 #   INPUT: Backup set number to work on
 #  RETURN: Full pathname of created backupfile
 #   NOTES: V0.2: Checks first if directory definition contains oracle export, in this
@@ -589,17 +589,9 @@ sub TarAndZipSet($)
 	  }
   $targetname = sprintf("%s/%s_%4d%02d%02d_%02d%02d%02d",$cfg->{'tmpdir'},$cfg->{'name'}[$setnr],$myyear,($tiarray[4]+1),$tiarray[3],$tiarray[2],$tiarray[1],$tiarray[0]);
   WriteToLog(sprintf("[%d] Creating file \"%s.tar%s\" from set #%d (%s)",$setnr,basename($targetname),$cfg->{'ext'},$setnr,$cfg->{'name'}[$setnr]));
-  my $cmd = sprintf("%s %s %s.tar %s >/dev/null 2>>tar_stderr.log",$cfg->{'tar'},$cfg->{'taropts'},$targetname,$cfg->{'dir'}[$setnr]);
+  my $cmd = sprintf("%s %s %s.tar%s %s >/dev/null 2>>tar_stderr.log",$cfg->{'tar'},$cfg->{'taropts'},$targetname,$cfg->{'ext'},$cfg->{'dir'}[$setnr]);
   if(ExecuteCMD($cmd,sprintf("TarAndZipSet(%d)->tar",$setnr),$cfg->{'tar'}))
     {
-    return(undef);
-    }
-  # And GZIP the file:
-  print(".");
-  $cmd = sprintf("%s %s.tar >/dev/null 2>>packer_stderr.log",$cfg->{'gzip'},$targetname);
-  if(ExecuteCMD($cmd,sprintf("TarAndZipSet(%d)->gzip",$setnr),$cfg->{'gzip'}))
-    {
-    unlink($targetname.'.tar'.$cfg->{'ext'});
     return(undef);
     }
   my $et = getmicrotime;
@@ -695,26 +687,16 @@ sub ExportOracle($)
 
   print(".");
   my $tarname = sprintf("%s/%s_%4d%02d%02d_%02d%02d%02d",$cfg->{'tmpdir'},$cfg->{'name'}[$setnr],$myyear,($tiarray[4]+1),$tiarray[3],$tiarray[2],$tiarray[1],$tiarray[0]);
-  my $cmd     = sprintf("%s %s %s.tar %s %s >/dev/null 2>&1",$cfg->{'tar'},$cfg->{'taropts'},$tarname,$targetname,$targetlog);
+  my $cmd     = sprintf("%s %s %s.tar%s %s %s >/dev/null 2>&1",$cfg->{'tar'},$cfg->{'taropts'},$tarname,$cfg->{'ext'},$targetname,$targetlog);
+
   if(ExecuteCMD($cmd,sprintf("ExportOracle(%d)->tar",$setnr),$cfg->{'tar'}))
     {
     unlink($targetname);
     unlink($targetlog);
     return(undef);
     }
-
-  # Finally GZIP the tar-file (removing first the original files to save space):
-
-  print(".");
   unlink($targetname);
   unlink($targetlog);
-  $cmd = sprintf("%s %s.tar >/dev/null 2>&1",$cfg->{'gzip'},$tarname);
-  if(ExecuteCMD($cmd,sprintf("ExportOracle(%d)->gzip",$setnr),$cfg->{'gzip'}))
-    {
-    unlink($tarname.'.tar');
-    return(undef);
-    }
-
   my $et = getmicrotime;
   printf("done (%2.3fs).\n",abs($et-$st));
   WriteToLog(sprintf("[%d] Oracle Export finished after %2.3fs",$setnr,abs($et-$st)));

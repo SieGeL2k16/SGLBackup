@@ -1,6 +1,21 @@
 SGLBackup history
 ---------------------------------------------------------------------------
 
+V0.50 (07-Apr-2015) - Removed the unnecessary steps to first create a tar
+                      and afterwards pack this file. This is bad because
+                      it requires double the backupsize (worst case) and
+                      takes way too long to finish. Now SGLBackup.pl calls
+                      tar with either 'j' (bzip2) or 'z' (gzip) and packs
+                      the tar in one step.
+                      For this to work the "GZIP_EXT" extension must be
+                      now either '.bz2' or '.gz', any other value will
+                      result in an error. SGLBackup uses these fixed strings
+                      to correctly set the tar options.
+                      Also the "TAROPTS" value is now checked, the last
+                      character must be "f" to instruct tar to work against
+                      a file. If no 'f' is found as last character, an
+                      error message is returned.
+
 V0.45 (29-Mar-2015) - Added new prefix "MYSQL56+" to DIR_* configuration.
                       This new string allows to backup MySQL 5.6 or newer
                       systems without getting the warning that passwords

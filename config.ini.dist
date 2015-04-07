@@ -1,6 +1,6 @@
 #############################################################################
 # Config Settings for SGLBackup
-# $Id: config.ini.dist,v 1.10 2010/10/19 08:23:45 siegel Exp $
+# Supported Version: 0.50 or newer
 #############################################################################
 
 [COMMAND]
@@ -35,6 +35,8 @@ GZIP = /usr/bin/bzip2 --best --force
 ###############################################################################
 # Specify here which extension the choosen packer uses,
 # this is REQUIRED!!!! (V0.3+)
+# V0.50: Currently ony gzip (.gz) and bzip2 (.bz2) are known, specifying any
+#        other value will result in a failure message!
 ###############################################################################
 
 GZIP_EXT = .bz2
@@ -65,7 +67,7 @@ MYSQLDUMP = /usr/bin/mysqldump
 # and triggers which is supported since MySQL 5.x
 ###############################################################################
 
-MYSQLDUMPOPTS = --routines --trigger
+MYSQLDUMPOPTS = --routines --triggers
 
 ###############################################################################
 # VLDB support: Specify here the full path to the "mknod" SGLBackup should
