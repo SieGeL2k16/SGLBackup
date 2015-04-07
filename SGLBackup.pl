@@ -592,7 +592,7 @@ sub TarAndZipSet($)
   my $cmd = sprintf("%s %s %s.tar%s %s >/dev/null 2>>tar_stderr.log",$cfg->{'tar'},$cfg->{'taropts'},$targetname,$cfg->{'ext'},$cfg->{'dir'}[$setnr]);
   if(ExecuteCMD($cmd,sprintf("TarAndZipSet(%d)->tar",$setnr),$cfg->{'tar'}))
     {
-    unlink($targetname);
+    unlink($targetname.'.tar'.$cfg->{'ext'});
     return(undef);
     }
   my $et = getmicrotime;
