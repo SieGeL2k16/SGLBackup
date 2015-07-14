@@ -23,7 +23,7 @@ use Data::Dumper;
 # Constant definitions
 ###################################################################################################
 
-use constant SGL_UTILS_VERSION  => '0.16';   # Version of this package
+use constant SGL_UTILS_VERSION  => '0.17';   # Version of this package
 
 ###################################################################################################
 # Exporter with important vars exported
@@ -778,6 +778,39 @@ sub ReadMySQLDBList($$$$$$$)
   return(sort @entries);
   }
 
+###################################################################################################
+#    NAME: checkProcess()
+# PURPOSE: Tests if a process is still running by checking the processlist for the given PID stored in lockfile.
+#   INPUT: 1 => Fullname of lockfile to check.
+#  RETURN: 0 => Process no longer available, so we can remove the lockfile, 1 => Script still running, so abort here.
+###################################################################################################
+
+sub checkProcess($)
+  {
+  my ($lfile) = @_;
+  my $pid;
+
+  open (INPUT, $lfile) || die "Can't open $lfile: $!";
+  $pid = <INPUT>;
+  close(INPUT);
+  if(!defined($pid) || !int($pid))
+    {
+    AddError("Got 0 as PID in checkProcess() ???\n\n");
+    return(0);
+    }
+  my $line = trim(`ps --format pid,args --pid $pid --no-headers`);
+  if(defined($line) && $line=~/$0/)
+    {
+    #DEBUG("Script is still running, do not touch it!\n");
+    return(1);
+    }
+  else
+    {
+    #DEBUG("Script not found, remove Lockfile!\n");
+    return(0);
+    }
+  }
+
 ####################################################################################################
 #    NAME: CreateLockFile()
 # PURPOSE: Tries to create a lockfile based on passed config name.
@@ -796,7 +829,21 @@ sub createLockFile($)
     open FH, $fname;
     my $buf = <FH>;
     close(FH);
-    return($buf);
+    my $rc = checkProcess($fname);
+    my $write_secs = (stat($fname))[9];
+    if($rc == 1)
+      {
+      WriteToLog(sprintf("WARN: There exists already a lockfile since \"%s\" (%s) - aborting!\n\n",scalar localtime($write_secs),$fname));
+      return($buf);
+      }
+    unlink($fname);
+    $exists = 0;
+    sysopen(FH, $fname, O_WRONLY|O_EXCL|O_CREAT) or $exists = 1;
+    if($exists == 1)
+      {
+      AddError("Unable to create lockfile after removing existing???");
+      return(-9999);
+      }
     }
   printf(FH "%d",$$);
   close(FH);
@@ -877,11 +924,15 @@ Sascha 'SieGeL' Pfalz <webmaster@saschapfalz.de>E<10>
 
 =head1 VERSION
 
-This is sgl_utils.pm V0.16
+This is sgl_utils.pm V0.17
 
 =head1 HISTORY
 
 =over 2
+
+=item <Bv0.17 (14-Jul-2015)>
+
+createLockfile() now checks if a stale lockfile has a process bound to it (via PID check), if not, the lockfile is removed so that the script will run.
 
 =item <Bv0.16 (07-Apr-2015)>
 

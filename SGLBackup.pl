@@ -29,7 +29,7 @@ use sgl_utils qw(:all);             # Load in the global functions
 # Global Variables
 ###################################################################################################
 
-use constant VER => '0.50';         # Version of this script
+use constant VER => '0.51';         # Version of this script
 my %bd;                             # Backup Dirs, stored as DIR_0/NAME_0 pairs
 my $cfgfile = 'config.ini';         # Config filename, can be changed via --config=<> parameter
 my $cfg;                            # Configuration settings stored as hash ref
@@ -1314,7 +1314,7 @@ Released under the GNU public licence.
 
 =head1 VERSION
 
-This is SGLBackup.pl B<V0.45>
+This is SGLBackup.pl B<V0.51>
 
 For changes see file CHANGELOG.
 

@@ -1,6 +1,12 @@
 SGLBackup history
 ---------------------------------------------------------------------------
 
+V0.51 (14-Jul-2015) - Updated sgl_utils.pm to 0.17:
+                      checkLockfile() now tests if a stale lockfile is
+                      still in use by a valid process (checks PID in /proc).
+                      If no process could be found lockfile is removed
+                      so that the script run.
+
 V0.50 (07-Apr-2015) - Removed the unnecessary steps to first create a tar
                       and afterwards pack this file. This is bad because
                       it requires double the backupsize (worst case) and
