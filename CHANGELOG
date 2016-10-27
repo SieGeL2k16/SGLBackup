@@ -1,6 +1,14 @@
 SGLBackup history
 ---------------------------------------------------------------------------
 
+V0.52 (26-Oct-2016) - Updated sgl_utils.pm to 0.18:
+                      Fixed parsing of MySQL setup if no pattern was given
+                      but only a named database..the whole config parser
+                      was broken for these situations :/ Now fixed, the
+                      config parser now correctly detects patterns and
+                      reacts accordingly.
+                      Reported by Sven Morling.
+
 V0.51 (14-Jul-2015) - Updated sgl_utils.pm to 0.17:
                       checkLockfile() now tests if a stale lockfile is
                       still in use by a valid process (checks PID in /proc).

@@ -23,7 +23,7 @@ use Data::Dumper;
 # Constant definitions
 ###################################################################################################
 
-use constant SGL_UTILS_VERSION  => '0.17';   # Version of this package
+use constant SGL_UTILS_VERSION  => '0.18';   # Version of this package
 
 ###################################################################################################
 # Exporter with important vars exported
@@ -500,80 +500,80 @@ sub ReadConfig($)
     }
 
   my $newmaxsets = $config->{'maxsets'};
+  my ($mysqldb,$mysqlhost,$mysqluser,$mysqlpass,$mysqllocal);
   for(my $i = 0; $i < $config->{'maxsets'}; $i++)
     {
-    if($config->{'dir'}[$i]=~/\*$/)
+    if($config->{'dir'}[$i]=~/^MYSQL\:/ || $config->{'dir'}[$i]=~/^MYSQL56\+\:/)
       {
-      $PATTERN_ACTIVE = 1;
-      $config->{'pattern'}[$i] = 1;       # Mark entry, so that we do not try to backup THIS entry
-      my ($mysqldb,$mysqlhost,$mysqluser,$mysqlpass,$mysqllocal);
-      if($config->{'dir'}[$i]=~/^MYSQL\:/ || $config->{'dir'}[$i]=~/^MYSQL56\+\:/)
+      # Parse old MySQL style with password on commandline
+      if($config->{'dir'}[$i]=~/^MYSQL\:/)
         {
-        # Parse old MySQL style with password on commandline
-        if($config->{'dir'}[$i]=~/^MYSQL\:/)
+        $mysqllocal = '';
+        my @dummy = split /\|/,$config->{'dir'}[$i];
+        if(defined($dummy[1]) && $dummy[1] ne '')
           {
-          $mysqllocal = '';
-          my @dummy = split /\|/,$config->{'dir'}[$i];
-          if(defined($dummy[1]) && $dummy[1] ne '')
-            {
-            $mysqldb = $dummy[1];
-            }
-          $dummy[0]=~s/^MYSQL://;
-          my @dummy2 = split /\@/,$dummy[0];
-          if(defined($dummy2[1]) && $dummy2[1] ne '')
-            {
-            $mysqlhost = $dummy2[1];
-            }
-          else
-            {
-            $mysqlhost = "localhost";
-            }
-          @dummy2 = split(/\//, $dummy2[0]);
-          $mysqluser = $dummy2[0];
-          if(!defined($mysqluser) || $mysqluser eq '')
-            {
-            printf(STDERR "ReadConfig() FAILED!!!\n\nCannot determine MySQL User name for backupset %s (Defined was %s) ????\n\n",$i,$config->{'dir'}[$i]);
-            die ("Check configuration of listed backupset - Aborting\n");
-            }
-          $mysqlpass = (defined($dummy2[1]) ? $dummy2[1] : '');
-          # Make pattern useable under perl (simple * is not enough)
-          if($mysqldb eq '*')
-            {
-            $mysqldb = '.*';
-            }
-          else
-            {
-            $mysqldb=~s/\*/\.\*/;
-            }
+          $mysqldb = $dummy[1];
+          }
+        $dummy[0]=~s/^MYSQL://;
+        my @dummy2 = split /\@/,$dummy[0];
+        if(defined($dummy2[1]) && $dummy2[1] ne '')
+          {
+          $mysqlhost = $dummy2[1];
           }
         else
           {
-          # New format for MySQL 5.6 or neweR:
-          # MYSQL56+: <username>/<local-path_value>|database
-          my @dummy = split /\|/,$config->{'dir'}[$i];
-          if(defined($dummy[1]) && $dummy[1] ne '')
-            {
-            $mysqldb = $dummy[1];
-            }
-          if($mysqldb eq '*')
-            {
-            $mysqldb = '.*';
-            }
-          else
-            {
-            $mysqldb=~s/\*/\.\*/;
-            }
-          $dummy[0]=~s/^MYSQL56\+://;
-          my @dummy2 = split /\@/,$dummy[0];
-          @dummy2 = split(/\//, $dummy2[0]);
-          $mysqluser = $dummy2[0];
-          if(!defined($mysqluser) || $mysqluser eq '')
-            {
-            printf(STDERR "ReadConfig() FAILED!!!\n\nCannot determine MySQL User name for backupset %s (Defined was %s) ????\n\n",$i,$config->{'dir'}[$i]);
-            die ("Check configuration of listed backupset - Aborting\n");
-            }
-          $mysqllocal = (defined($dummy2[1]) ? $dummy2[1] : '');
+          $mysqlhost = "localhost";
           }
+        @dummy2 = split(/\//, $dummy2[0]);
+        $mysqluser = $dummy2[0];
+        if(!defined($mysqluser) || $mysqluser eq '')
+          {
+          printf(STDERR "ReadConfig() FAILED!!!\n\nCannot determine MySQL User name for backupset %s (Defined was %s) ????\n\n",$i,$config->{'dir'}[$i]);
+          die ("Check configuration of listed backupset - Aborting\n");
+          }
+        $mysqlpass = (defined($dummy2[1]) ? $dummy2[1] : '');
+        # Make pattern useable under perl (simple * is not enough)
+        if($mysqldb eq '*')
+          {
+          $mysqldb = '.*';
+          }
+        else
+          {
+          $mysqldb=~s/\*/\.\*/;
+          }
+        }
+      else
+        {
+        # New format for MySQL 5.6 or neweR:
+        # MYSQL56+: <username>/<local-path_value>|database
+        my @dummy = split /\|/,$config->{'dir'}[$i];
+        if(defined($dummy[1]) && $dummy[1] ne '')
+          {
+          $mysqldb = $dummy[1];
+          }
+        if($mysqldb eq '*')
+          {
+          $mysqldb = '.*';
+          }
+        else
+          {
+          $mysqldb=~s/\*/\.\*/;
+          }
+        $dummy[0]=~s/^MYSQL56\+://;
+        my @dummy2 = split /\@/,$dummy[0];
+        @dummy2 = split(/\//, $dummy2[0]);
+        $mysqluser = $dummy2[0];
+        if(!defined($mysqluser) || $mysqluser eq '')
+          {
+          printf(STDERR "ReadConfig() FAILED!!!\n\nCannot determine MySQL User name for backupset %s (Defined was %s) ????\n\n",$i,$config->{'dir'}[$i]);
+          die ("Check configuration of listed backupset - Aborting\n");
+          }
+        $mysqllocal = (defined($dummy2[1]) ? $dummy2[1] : '');
+        }
+      if($config->{'dir'}[$i]=~/\*$/)
+        {
+        $PATTERN_ACTIVE = 1;
+        $config->{'pattern'}[$i] = 1;       # Mark entry, so that we do not try to backup THIS entry
         my @dbs = ReadMySQLDBList($mysqluser,$mysqlpass,$mysqlhost,$mysqldb,$config->{'mysqldump'},$config->{'tmpdir'},$mysqllocal);
         # Now add the new found directories as new entries to our config array
         for(my $jobs = 0; $jobs < scalar @dbs; $jobs++)
@@ -609,6 +609,40 @@ sub ReadConfig($)
         }
       else
         {
+        if($mysqllocal ne '')
+          {
+          $config->{'dir'}[$i]     = sprintf("MYSQL56+:%s/%s|%s",$mysqluser,$mysqllocal,$mysqldb);
+          }
+        else
+          {
+          $config->{'dir'}[$i]     = sprintf("MYSQL:%s/%s@%s|%s",$mysqluser,$mysqlpass,$mysqlhost,$mysqldb);
+          }
+        $config->{'name'}[$i]    = $config->{'name'}[$i]."_".$mysqldb;
+        $config->{'mode'}[$i]    = $config->{'mode'}[$i];
+        $config->{'maxgen'}[$i]  = $config->{'maxgen'}[$i];
+        $config->{'dest'}[$i]    = $config->{'dest'}[$i];
+        $config->{'ftp'}[$i]     = $config->{'ftp'}[$i];
+        $config->{'ftpdir'}[$i]  = $config->{'ftpdir'}[$i];
+        $config->{'vldb'}[$i]    = $config->{'vldb'}[$i];
+        $config->{'pattern'}[$i] = 0;
+        $config->{'compress'}[$i]= $config->{'compress'}[$i];
+        $config->{'scp'}[$i]     = $config->{'scp'}[$i];
+        $config->{'scpopts'}[$i] = $config->{'scpopts'}[$i];
+        $config->{'sshopts'}[$i] = $config->{'sshopts'}[$i];
+        $config->{'exclude'}[$i] = $config->{'exclude'}[$i];
+        $config->{'muser'}[$i]   = $mysqluser;
+        $config->{'mpass'}[$i]   = $mysqlpass;
+        $config->{'mhost'}[$i]   = $mysqlhost;
+        $config->{'mdb'}[$i]     = $mysqldb;
+        $config->{'mlocal'}[$i]  = $mysqllocal;
+        }
+      }
+    else
+      {
+      if($config->{'dir'}[$i]=~/\*$/)
+        {
+        $PATTERN_ACTIVE = 1;
+        $config->{'pattern'}[$i] = 1;       # Mark entry, so that we do not try to backup THIS entry
         my @entries;
         my $targetdir = $config->{'dir'}[$i];
         my $pattern;
