@@ -1,2 +1,4 @@
+.idea
 tar_stderr.log
+configs/*.ini
 

@@ -305,7 +305,6 @@ sub die_handler
     WriteToLog($showerr);
     }
   die $error."\n\n";
-  exit;
   }
 
 ###################################################################################################
@@ -855,7 +854,8 @@ sub createLockFile($)
   {
   my ($cname) = @_;
   my $exists = 0;
-  my $fname = '/tmp/'.$cname.'.lck';
+  my $basename = basename($cname);
+  my $fname = '/tmp/'.$basename.'.lck';
 
   sysopen(FH, $fname, O_WRONLY|O_EXCL|O_CREAT) or $exists = 1;
   if($exists == 1)
@@ -894,7 +894,7 @@ sub removeLockFile($)
   {
   my ($cname) = @_;
 
-  my $fname = '/tmp/'.$cname.'.lck';
+  my $fname = '/tmp/'.basename($cname).'.lck';
   unlink $fname;
   }
 

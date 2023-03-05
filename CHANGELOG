@@ -1,5 +1,8 @@
 SGLBackup history
 ---------------------------------------------------------------------------
+V0.53 (05-Mar-2023) - Fixed errors when configuration files are stored inside
+                      a subdirectory
+                    - Added FinBin support for auto-detection of sgl_utils.pm
 
 V0.52 (26-Oct-2016) - Updated sgl_utils.pm to 0.18:
                       Fixed parsing of MySQL setup if no pattern was given
